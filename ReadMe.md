@@ -53,6 +53,9 @@ go build -ldflags "-s -w" -o krexport .
 ```
 ### Формат ответа
 При успешном выполнении запроса тело ответа будет содержать массив струтур вида:
+- restaurantId    int       // • ID ресторана 
+- cashGroupId     int       // • ID кассы 
+- visitId         int       // • ID посещения 
 - checkOpen       time.Time // • Дата/время открытия/закрытия заказа
 - checkClose      time.Time // • Дата/время открытия/закрытия заказа
 - visitStartTime  time.Time // • Дата/время формирования пречека

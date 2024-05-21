@@ -71,6 +71,9 @@ func TestConfig(t *testing.T) {
 func TestMakeResponse(t *testing.T) {
 	rk_data := []RKDate{
 		{CheckClose: time.Now(),
+			RestaurantId:    111,
+			CashGroupId:     222,
+			VisitId:         333,
 			CheckOpen:       time.Now().Add(time.Duration(1) * time.Minute),
 			VisitStartTime:  time.Now(),
 			FiscDocNum:      "Fiscalization",
@@ -98,6 +101,15 @@ func TestMakeResponse(t *testing.T) {
 	}
 	date_l := "02.01.2006"
 	for i := range resp_date {
+		if resp_date[i].RestaurantId != rk_data[i].RestaurantId {
+			t.Fatalf("Line %d, RestaurantId expected to be %d, got %d", i, rk_data[i].RestaurantId, resp_date[i].RestaurantId)
+		}
+		if resp_date[i].CashGroupId != rk_data[i].CashGroupId {
+			t.Fatalf("Line %d, CashGroupId expected to be %d, got %d", i, rk_data[i].CashGroupId, resp_date[i].CashGroupId)
+		}
+		if resp_date[i].VisitId != rk_data[i].VisitId {
+			t.Fatalf("Line %d, VisitId expected to be %d, got %d", i, rk_data[i].VisitId, resp_date[i].VisitId)
+		}
 		if resp_date[i].CheckOpen.Compare(rk_data[i].CheckOpen) != 0 {
 			t.Fatalf("Line %d, CheckOpen expected to be %s, got %s", i, rk_data[i].CheckOpen.Format(date_l), resp_date[i].CheckOpen.Format(date_l))
 

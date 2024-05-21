@@ -25,6 +25,9 @@ const (
 
 // RKDate is retrieved from MSSQL
 type RKDate struct {
+	RestaurantId    int       `json:"restaurantId"`
+	CashGroupId     int       `json:"cashGroupId"`
+	VisitId         int       `json:"visitId"`
 	CheckOpen       time.Time `json:"checkOpen"`       // • Дата/время открытия/закрытия заказа
 	CheckClose      time.Time `json:"checkClose"`      // • Дата/время открытия/закрытия заказа
 	VisitStartTime  time.Time `json:"visitStartTime"`  // • Дата/время формирования пречека
@@ -185,7 +188,10 @@ func (a *App) FetchRKData(ctx context.Context, msConStr string, from, count int,
 
 	for rows.Next() {
 		row_data := RKDate{}
-		if err := rows.Scan(&row_data.CheckOpen,
+		if err := rows.Scan(&row_data.RestaurantId,
+			&row_data.CashGroupId,
+			&row_data.VisitId,
+			&row_data.CheckOpen,
 			&row_data.CheckClose,
 			&row_data.VisitStartTime,
 			&row_data.OrderNum,

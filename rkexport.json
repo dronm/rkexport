@@ -5,12 +5,10 @@
 	"msCon":"sqlserver://USER:PASSWORD@SERVER:1433/INSTANCE?database=DATABASE",
 	"restaurants":["Rest1"],
 	"cashGroups":[],
-	"webServer":{
-		"credential":"user:123456",
-		"host":":59000",
-		"idleTimeout":2000,
-		"readTimeout":10000,
-		"writeTimeout":10000,
-		"handlerTimeout":5000
-	}
+	"apiUrl":"http://localhost/test",
+	"apiCmdGetPeriod":"period/",
+	"apiCmdPutData":"data/",
+	"apiKey":"123456",
+	"activationTime":"13:17",
+	"tradecenterID":"tc1"
 }

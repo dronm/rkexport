@@ -5,14 +5,6 @@ import (
 	"encoding/json"
 )
 
-type WebServer struct {
-	Host           string `json:"host"`        //web server host:port
-	IdleTimeout    int    `json:"idleTimeout"` // all parameters are in milliseconds
-	ReadTimeout    int    `json:"readTimeout"`
-	WriteTimeout   int    `json:"writeTimeout"`
-	HandlerTimeout int    `json:"handlerTimeout"`
-	Credential     string `json:"credential"` //login:password
-}
 type AppConfig struct {
 	LogTo    string `json:"logTo"` // where to log: stdout|file, stdout is default
 	LogFile  string `json:"logFile"`
@@ -22,7 +14,12 @@ type AppConfig struct {
 	Restaurants []string `json:"restaurants"` // names from 'restaurants' table or empty for all restaurants
 	CashGroups  []string `json:"cashGroups"`  // names from cashgroups table or empty for all cash groups
 
-	WebServer WebServer `json:"webServer"`
+	APIUrl          string `json:"apiUrl"`
+	APICmdGetPeriod string `json:"apiCmdGetPeriod"`
+	APICmdPutData   string `json:"apiCmdPutData"`
+	APIKey          string `json:"apiKey"`
+	ActivationTime  string `json:"activationTime"` //time in format 00:00
+	TradecenterID   string `json:"tradecenterID"`
 }
 
 func (c *AppConfig) Load(configData []byte) error {

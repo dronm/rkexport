@@ -19,7 +19,8 @@ type AppConfig struct {
 	APICmdPutData   string `json:"apiCmdPutData"`
 	APIKey          string `json:"apiKey"`
 	ActivationTime  string `json:"activationTime"` //time in format 00:00
-	TradecenterID   string `json:"tradecenterID"`
+	ScID            string `json:"scID"`
+	SaleLocationID  string `json:"saleLocationID"`
 }
 
 func (c *AppConfig) Load(configData []byte) error {

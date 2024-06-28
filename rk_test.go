@@ -205,16 +205,15 @@ func TestNextActDate(t *testing.T) {
 }
 
 func TestFetchReportPeriod(t *testing.T) {
-	host := ":8081"
+	host := ":8085"
 	cat := "/period"
 	url := "http://" + host + cat
 	date_from := time.Now().Add(time.Duration(-10) * 24 * time.Hour).Truncate(time.Minute)
 	date_to := time.Now().Truncate(time.Minute)
 
 	http.HandleFunc(cat, func(w http.ResponseWriter, req *http.Request) {
-		w.Write([]byte(fmt.Sprintf(`{"dateFrom": "%s", "dateTo":"%s"}`,
+		w.Write([]byte(fmt.Sprintf(`{"success": true, "last_sale_date":"%s"}`,
 			date_from.Format(ReportPeriodLoyout),
-			date_to.Format(ReportPeriodLoyout),
 		)))
 	})
 	go http.ListenAndServe(host, nil)
@@ -224,22 +223,23 @@ func TestFetchReportPeriod(t *testing.T) {
 		t.Fatalf("initLogger() failed: %v", err)
 	}
 
-	per, err := app.FetchReportPerod(url)
+	d1, d2, err := app.FetchReportPerod(url)
 	if err != nil {
 		t.Fatalf("FetchReportPerod() failed: %v", err)
 	}
-	if time.Time(per.DateFrom).Format(ReportPeriodLoyout) != date_from.Format(ReportPeriodLoyout) {
-		t.Fatalf("DateFrom got %v, expected %v", time.Time(per.DateFrom).Format(ReportPeriodLoyout), date_from.Format(ReportPeriodLoyout))
+	if d1.Format(ReportPeriodLoyout) != date_from.Format(ReportPeriodLoyout) {
+		t.Fatalf("DateFrom got %v, expected %v", d1.Format(ReportPeriodLoyout), date_from.Format(ReportPeriodLoyout))
 	}
 
-	if time.Time(per.DateTo).Format(ReportPeriodLoyout) != date_to.Format(ReportPeriodLoyout) {
-		t.Fatalf("DateTo got %v, expected %v", time.Time(per.DateTo).Format(ReportPeriodLoyout), date_to.Format(ReportPeriodLoyout))
+	if d2.Format(ReportPeriodLoyout) != date_to.Format(ReportPeriodLoyout) {
+		t.Fatalf("DateTo got %v, expected %v", d2.Format(ReportPeriodLoyout), date_to.Format(ReportPeriodLoyout))
 	}
 }
 
 func TestSendData(t *testing.T) {
-	host := ":8085"
+	host := ":8086"
 	cat := "/data"
+	api_key := "123456"
 	url := "http://" + host + cat
 
 	rk_data := []RKDate{
@@ -248,6 +248,10 @@ func TestSendData(t *testing.T) {
 	}
 
 	http.HandleFunc(cat, func(w http.ResponseWriter, req *http.Request) {
+		req_token := req.Header.Get(API_TOKEN_HEADER_ID)
+		if req_token != api_key {
+			t.Fatalf("header api-token does not match, want %s got %s", api_key, req_token)
+		}
 		defer req.Body.Close()
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
@@ -275,6 +279,6 @@ func TestSendData(t *testing.T) {
 	if err := app.initLogger(); err != nil {
 		t.Fatalf("initLogger() failed: %v", err)
 	}
-	app.SendData(rk_data, url)
+	app.SendData(rk_data, url, api_key)
 
 }

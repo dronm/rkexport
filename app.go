@@ -27,8 +27,9 @@ const (
 
 	CONF_TIME_LAYOUT = "15:04"
 
-	API_TRY_CNT  = 5
-	API_WAIT_SEC = 3
+	API_TRY_CNT         = 5
+	API_WAIT_SEC        = 3
+	API_TOKEN_HEADER_ID = "api-token"
 )
 
 type App struct {
@@ -138,14 +139,11 @@ func (d *ReportPeriodDate) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type ReportPeriod struct {
-	DateFrom ReportPeriodDate `json:"dateFrom"`
-	DateTo   ReportPeriodDate `json:"dateTo"`
+type LastSaleDateResponse struct {
+	LastSaleDate ReportPeriodDate `json:"last_sale_date"`
 }
 
-func (a *App) FetchReportPerod(url string) (ReportPeriod, error) {
-	var rep_period ReportPeriod
-
+func (a *App) FetchReportPerod(url string) (time.Time, time.Time, error) {
 	tries_for_query := API_TRY_CNT
 	for tries_for_query > 0 {
 		client := &http.Client{}
@@ -175,22 +173,24 @@ func (a *App) FetchReportPerod(url string) (ReportPeriod, error) {
 			continue
 		}
 
-		if err := json.Unmarshal(body, &rep_period); err != nil {
-			a.Log.Errorf("json.Unmarshal() failed to unmarshal report period: %v", err)
+		date_resp := LastSaleDateResponse{}
+		if err := json.Unmarshal(body, &date_resp); err != nil {
+			a.Log.Errorf("json.Unmarshal() failed to unmarshal last sale date: %v", err)
 			time.Sleep(time.Duration(API_WAIT_SEC) * time.Second)
 			tries_for_query--
 			continue
 		}
 		//set toDate to end of day
-		dt := time.Time(rep_period.DateTo)
-		rep_period.DateTo = ReportPeriodDate(time.Date(dt.Year(), dt.Month(), dt.Day(), 23, 59, 59, 999, dt.Location()))
+		dt_from := time.Time(date_resp.LastSaleDate)
+		n := time.Now()
+		dt_to := time.Date(n.Year(), n.Month(), n.Day(), 23, 59, 59, 999, n.Location())
 
-		return rep_period, nil
+		return dt_from, dt_to, nil
 	}
-	return rep_period, fmt.Errorf("error fetching report period")
+	return time.Time{}, time.Time{}, fmt.Errorf("error fetching report period")
 }
 
-func (a *App) SendData(rkData []RKDate, url string) error {
+func (a *App) SendData(rkData []RKDate, url string, apiKey string) error {
 	//marshal data
 	rk_data_b, err := json.Marshal(rkData)
 	if err != nil {
@@ -205,6 +205,7 @@ func (a *App) SendData(rkData []RKDate, url string) error {
 	}
 
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set(API_TOKEN_HEADER_ID, apiKey) //add API key
 
 	tries_for_query := API_TRY_CNT
 	for tries_for_query > 0 {
@@ -239,11 +240,23 @@ func ensureSlash(url string) string {
 
 // main loop
 func (a *App) Start() error {
-	//calculate wait time
+	//checking
 	if a.Config.APIUrl == "" {
 		return fmt.Errorf("API url not set")
 	}
+	if a.Config.APIKey == "" {
+		return fmt.Errorf("APIKey not set")
+	}
+	if a.Config.ScID == "" {
+		return fmt.Errorf("scID not set")
+	}
+	if a.Config.SaleLocationID == "" {
+		return fmt.Errorf("saleLocationID not set")
+	}
+
 	url := ensureSlash(a.Config.APIUrl)
+	url = strings.ReplaceAll(url, "{{scID}}", a.Config.ScID)
+	url = strings.ReplaceAll(url, "{{saleLocationID}}", a.Config.SaleLocationID)
 
 	if a.Config.APICmdGetPeriod == "" {
 		return fmt.Errorf("API cmdGetPeriod not set")
@@ -255,12 +268,13 @@ func (a *App) Start() error {
 	}
 	cmd_data := ensureSlash(a.Config.APICmdPutData)
 
-	rep_period_url := fmt.Sprintf("%s%s?key=%s&id=%s", url, cmd_period, a.Config.APIKey, a.Config.TradecenterID)
-	send_data_url := fmt.Sprintf("%s%s?key=%s&id=%s", url, cmd_data, a.Config.APIKey, a.Config.TradecenterID)
+	rep_period_url := fmt.Sprintf("%s%s", url, cmd_period)
+	send_data_url := fmt.Sprintf("%s%s", url, cmd_data)
+	a.Log.Debugf("get date url: %s", rep_period_url)
+	a.Log.Debugf("put data url: %s", send_data_url)
 	first_query := true
 
-	//main wait loop
-	var rep_period ReportPeriod
+	//main wait loop. On first start send query anyway.
 	for {
 		if !first_query {
 			act_dt, err := a.NextActDate(time.Now(), a.Config.ActivationTime)
@@ -274,8 +288,7 @@ func (a *App) Start() error {
 		}
 
 		//retrieve period for this client
-		var err error
-		rep_period, err = a.FetchReportPerod(rep_period_url)
+		dt_from, dt_to, err := a.FetchReportPerod(rep_period_url)
 		if err != nil {
 			if first_query {
 				return err
@@ -288,8 +301,8 @@ func (a *App) Start() error {
 		from := 0
 		count := DEF_PARAM_COUNT
 		for {
-			a.Log.Debugf("Fetching data for period: %s %s", time.Time(rep_period.DateFrom).Format(PARAM_DATE_LAYOUT), time.Time(rep_period.DateTo).Format(PARAM_DATE_LAYOUT))
-			rk_data, err := a.FetchRKData(context.Background(), a.Config.MSCon, from, count, time.Time(rep_period.DateFrom), time.Time(rep_period.DateTo))
+			a.Log.Debugf("Fetching data for period: %s %s", dt_from.Format(PARAM_DATE_LAYOUT), dt_to.Format(PARAM_DATE_LAYOUT))
+			rk_data, err := a.FetchRKData(context.Background(), a.Config.MSCon, from, count, dt_from, dt_to)
 			if err != nil {
 				if first_query {
 					return err
@@ -304,7 +317,7 @@ func (a *App) Start() error {
 				break //no data
 			}
 
-			if err := a.SendData(rk_data, send_data_url); err != nil {
+			if err := a.SendData(rk_data, send_data_url, a.Config.APIKey); err != nil {
 				if first_query {
 					return err
 				}

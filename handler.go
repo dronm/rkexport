@@ -24,20 +24,20 @@ const (
 
 // RKDate is retrieved from MSSQL
 type RKDate struct {
-	RestaurantId    int       `json:"restaurantId"`
-	CashGroupId     int       `json:"cashGroupId"`
-	VisitId         int       `json:"visitId"`
-	CheckOpen       time.Time `json:"checkOpen"`       // • Дата/время открытия/закрытия заказа
-	CheckClose      time.Time `json:"checkClose"`      // • Дата/время открытия/закрытия заказа
-	VisitStartTime  time.Time `json:"visitStartTime"`  // • Дата/время формирования пречека
-	OrderNum        string    `json:"orderNum"`        // • Номер заказа
-	FiscDocNum      string    `json:"fiscDocNum"`      // • Фискализация
-	OrderSum        float64   `json:"orderSum"`        // • Сумма заказа до применения скидок
-	PaySum          float64   `json:"paySum"`          // • Фактическая сумма заказа, оплаченная пользователем (после применения скидок)
-	ItemCount       float64   `json:"itemCount"`       // • Кол-во позиций в чеке
-	PayType         string    `json:"payType"`         // • Способ оплаты (нал/безнал/иное)
-	DiscountSum     float64   `json:"discountSum"`     // • Сумма использованных бонусов/скидок и комментарий по ним
-	DiscountComment string    `json:"discountComment"` // • Признак удаления заказа или его сторнирования
+	RestaurantId    int       `json:"restaurant_id"`
+	CashGroupId     int       `json:"cash_group_id"`
+	VisitId         int       `json:"visit_id"`
+	CheckOpen       time.Time `json:"check_open"`       // • Дата/время открытия/закрытия заказа
+	CheckClose      time.Time `json:"check_close"`      // • Дата/время открытия/закрытия заказа
+	VisitStartTime  time.Time `json:"visit_start_time"` // • Дата/время формирования пречека
+	OrderNum        string    `json:"order_num"`        // • Номер заказа
+	FiscDocNum      string    `json:"fisc_doc_num"`     // • Фискализация
+	OrderSum        float64   `json:"order_sum"`        // • Сумма заказа до применения скидок
+	PaySum          float64   `json:"pay_sum"`          // • Фактическая сумма заказа, оплаченная пользователем (после применения скидок)
+	ItemCount       float64   `json:"item_count"`       // • Кол-во позиций в чеке
+	PayType         string    `json:"pay_type"`         // • Способ оплаты (нал/безнал/иное)
+	DiscountSum     float64   `json:"discount_sum"`     // • Сумма использованных бонусов/скидок и комментарий по ним
+	DiscountComment string    `json:"discount_comment"` // • Признак удаления заказа или его сторнирования
 }
 
 // MakeResponse constructs http response from data structure and adds to writer.

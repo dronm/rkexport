@@ -143,7 +143,16 @@ type LastSaleDateResponse struct {
 	LastSaleDate ReportPeriodDate `json:"last_sale_date"`
 }
 
-func (a *App) FetchReportPerod(url string) (time.Time, time.Time, error) {
+func (a *App) FetchReportPerod(url string, apiKey string) (time.Time, time.Time, error) {
+	// d1, err := time.Parse(ReportPeriodLoyout, "2024-07-01")
+	// if err != nil {
+	// 	return time.Time{}, time.Time{}, err
+	// }
+	// d2, err := time.Parse(ReportPeriodLoyout, "2024-07-01")
+	// if err != nil {
+	// 	return time.Time{}, time.Time{}, err
+	// }
+	// return d1, d2, nil
 	tries_for_query := API_TRY_CNT
 	for tries_for_query > 0 {
 		client := &http.Client{}
@@ -155,7 +164,9 @@ func (a *App) FetchReportPerod(url string) (time.Time, time.Time, error) {
 			continue
 		}
 
-		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set(API_TOKEN_HEADER_ID, apiKey) //add API key
+
 		resp, err := client.Do(req)
 		if err != nil {
 			a.Log.Errorf("http.Do() failed: %v", err)
@@ -197,14 +208,19 @@ func (a *App) SendData(rkData []RKDate, url string, apiKey string) error {
 		return err
 	}
 
+	//wrapper
+	rk_data_b_wr := []byte(`{"data":`)
+	rk_data_b_wr = append(rk_data_b_wr, rk_data_b...)
+	rk_data_b_wr = append(rk_data_b_wr, []byte(`}`)...)
+
 	//send
 	client := &http.Client{}
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(rk_data_b))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(rk_data_b_wr))
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(API_TOKEN_HEADER_ID, apiKey) //add API key
 
 	tries_for_query := API_TRY_CNT
@@ -217,9 +233,16 @@ func (a *App) SendData(rkData []RKDate, url string, apiKey string) error {
 			continue
 		}
 		defer resp.Body.Close()
-
 		if resp.StatusCode != http.StatusOK {
-			a.Log.Errorf("API send data response status code:", resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				a.Log.Errorf("io.ReadAll() failed to read body: %v", err)
+				time.Sleep(time.Duration(API_WAIT_SEC) * time.Second)
+				tries_for_query--
+				continue
+			}
+			a.Log.Errorf("API send data response status code: %d, body: %s", resp.StatusCode, string(body))
+			a.Log.Errorf("request url: %s, request body: %s", url, string(rk_data_b_wr))
 			time.Sleep(time.Duration(API_WAIT_SEC) * time.Second)
 			tries_for_query--
 			continue
@@ -288,7 +311,7 @@ func (a *App) Start() error {
 		}
 
 		//retrieve period for this client
-		dt_from, dt_to, err := a.FetchReportPerod(rep_period_url)
+		dt_from, dt_to, err := a.FetchReportPerod(rep_period_url, a.Config.APIKey)
 		if err != nil {
 			if first_query {
 				return err

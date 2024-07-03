@@ -35,6 +35,7 @@ func main() {
 		panic(fmt.Sprintf("app.LoadConfig() failed: %v", err))
 	}
 	if err := app.Start(); err != nil {
-		panic(fmt.Sprintf("app.Start() failed: %v", err))
+		app.Log.Errorf("app.Start() failed: %v", err)
+		os.Exit(1)
 	}
 }

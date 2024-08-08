@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,23 +23,8 @@ const (
 	DEF_PARAM_COUNT = 100
 )
 
-// RKDate is retrieved from MSSQL
-type RKDate struct {
-	RestaurantId    int       `json:"restaurant_id"`
-	CashGroupId     int       `json:"cash_group_id"`
-	VisitId         int       `json:"visit_id"`
-	CheckOpen       time.Time `json:"check_open"`       // • Дата/время открытия/закрытия заказа
-	CheckClose      time.Time `json:"check_close"`      // • Дата/время открытия/закрытия заказа
-	VisitStartTime  time.Time `json:"visit_start_time"` // • Дата/время формирования пречека
-	OrderNum        string    `json:"order_num"`        // • Номер заказа
-	FiscDocNum      string    `json:"fisc_doc_num"`     // • Фискализация
-	OrderSum        float64   `json:"order_sum"`        // • Сумма заказа до применения скидок
-	PaySum          float64   `json:"pay_sum"`          // • Фактическая сумма заказа, оплаченная пользователем (после применения скидок)
-	ItemCount       float64   `json:"item_count"`       // • Кол-во позиций в чеке
-	PayType         string    `json:"pay_type"`         // • Способ оплаты (нал/безнал/иное)
-	DiscountSum     float64   `json:"discount_sum"`     // • Сумма использованных бонусов/скидок и комментарий по ним
-	DiscountComment string    `json:"discount_comment"` // • Признак удаления заказа или его сторнирования
-}
+// MSSQL query row result
+type RKDate map[string]interface{}
 
 // MakeResponse constructs http response from data structure and adds to writer.
 func (a *App) MakeResponse(w http.ResponseWriter, rkData []RKDate) {
@@ -87,26 +73,83 @@ func (a *App) FetchRKData(ctx context.Context, msConStr string, from, count int,
 	}
 	defer rows.Close()
 
+	columns, err := rows.Columns()
+	if err != nil {
+		return rk_data, err
+	}
+
+	column_types, err := rows.ColumnTypes()
+	if err != nil {
+		return rk_data, err
+	}
+
+	rk_data = make([]RKDate, 0)
+
 	for rows.Next() {
-		row_data := RKDate{}
-		if err := rows.Scan(&row_data.RestaurantId,
-			&row_data.CashGroupId,
-			&row_data.VisitId,
-			&row_data.CheckOpen,
-			&row_data.CheckClose,
-			&row_data.VisitStartTime,
-			&row_data.OrderNum,
-			&row_data.FiscDocNum,
-			&row_data.OrderSum,
-			&row_data.PaySum,
-			&row_data.ItemCount,
-			&row_data.PayType,
-			&row_data.DiscountSum,
-			&row_data.DiscountComment,
-		); err != nil {
-			return rk_data, fmt.Errorf("rows.Scan() failed: %v", err)
+		values := make([]interface{}, len(columns))
+		value_ptrs := make([]interface{}, len(columns))
+		for i := range values {
+			value_ptrs[i] = &values[i]
 		}
-		rk_data = append(rk_data, row_data)
+
+		if err := rows.Scan(value_ptrs...); err != nil {
+			return rk_data, err
+		}
+
+		row_map := make(map[string]interface{})
+		for i, col := range columns {
+			val := values[i]
+
+			// Handle null values
+			if val == nil {
+				row_map[col] = nil
+				continue
+			}
+			// a.Log.Debugf("column %d, SQL type: %s", i, column_types[i].DatabaseTypeName())
+			// Handle different types explicitly
+			var converted bool
+			col_type := column_types[i].DatabaseTypeName()
+			switch col_type {
+			case "INT", "BIGINT", "SMALLINT", "TINYINT":
+				if row_map[col], converted = val.(int64); !converted {
+					return rk_data, fmt.Errorf("error converting %s to int64", col_type)
+				}
+			case "FLOAT", "REAL", "DECIMAL", "NUMERIC":
+				if row_map[col], converted = val.(float64); !converted {
+					return rk_data, fmt.Errorf("error converting %s to float64", col_type)
+				}
+			case "MONEY", "SMALLMONEY":
+				var val_b []byte
+				if val_b, converted = val.([]byte); !converted {
+					return rk_data, fmt.Errorf("error converting %s to byte", col_type)
+				}
+				val_f, err := strconv.ParseFloat(string(val_b), 64)
+				if err != nil {
+					return rk_data, fmt.Errorf("error converting %s: strconv.ParseFloat() failed: %v", col_type, err)
+				}
+				row_map[col] = val_f
+			case "BIT":
+				if row_map[col], converted = val.(bool); !converted {
+					return rk_data, fmt.Errorf("error converting %s to bool", col_type)
+				}
+			case "CHAR", "VARCHAR", "TEXT", "NCHAR", "NVARCHAR", "NTEXT":
+				if row_map[col], converted = val.(string); !converted {
+					return rk_data, fmt.Errorf("error converting %s to string", col_type)
+				}
+			case "DATE", "DATETIME", "DATETIME2", "SMALLDATETIME", "TIME", "DATETIMEOFFSET":
+				var val_time time.Time
+				if val_time, converted = val.(time.Time); !converted {
+					return rk_data, fmt.Errorf("error converting %s to time.Time", col_type)
+				} else {
+					row_map[col] = val_time.Format(time.RFC3339)
+				}
+			default:
+				a.Log.Debugf("column %d, unknown SQL type: %s", i, col_type)
+				row_map[col] = fmt.Sprintf("%v", val)
+			}
+			// a.Log.Debugf("map value: %v", row_map[col])
+		}
+		rk_data = append(rk_data, row_map)
 	}
 
 	return rk_data, nil

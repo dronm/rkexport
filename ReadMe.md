@@ -31,24 +31,11 @@
 В Windows:
 ```
 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -H=windowsgui" -o rkexport.exe
+Также можно использовать *make* для сборки в среде Windows: make test (сборка для запуска в терминале), make prod (сборка Windows gui)
 ```
 В Linux:
 ```
-go build -ldflags "-s -w" -o krexport .
+go build -ldflags "-s -w" -o rkexport .
 ```
 ### Формат ответа
-При успешном выполнении запроса тело ответа будет содержать массив струтур вида:
-- restaurantId    int       // • ID ресторана 
-- cashGroupId     int       // • ID кассы 
-- visitId         int       // • ID посещения 
-- checkOpen       time.Time // • Дата/время открытия/закрытия заказа
-- checkClose      time.Time // • Дата/время открытия/закрытия заказа
-- visitStartTime  time.Time // • Дата/время формирования пречека
-- orderNum        string    // • Номер заказа
-- fiscDocNum      string    // • Фискализация
-- orderSum        float64   // • Сумма заказа до применения скидок
-- paySum          float64   // • Фактическая сумма заказа, оплаченная пользователем (после применения скидок)
-- itemCount       int       // • Кол-во позиций в чеке
-- payType         string    // • Способ оплаты (нал/безнал/иное)
-- discountSum     float64   // • Сумма использованных бонусов/скидок и комментарий по ним
-- discountComment string    // • Признак удаления заказа или его сторнирования
+При успешном выполнении запроса тело ответа будет содержать массив струтур. Структуры напрямую зависят от запроса SQL.

@@ -80,6 +80,7 @@ func TestMakeResponse(t *testing.T) {
 			DiscountComment: "discount",
 		},
 	}
+
 	app := NewApp()
 	w := httptest.NewRecorder()
 	app.MakeResponse(w, rk_data)

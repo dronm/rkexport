@@ -15,15 +15,8 @@ import (
 )
 
 const (
-	AUTH_PREF      = "basic "
 	DEF_LOG_FORMAT = "${time_rfc3339_nano} ${short_file}:${line} ${level} -${message}"
 	DEF_LOG_LEVEL  = "debug"
-
-	IDLE_TIMEOUT_MS      = 5 * 1000
-	READ_TIMEOUT_MS      = 10 * 1000
-	WRITE_TIMEOUT_MS     = 20 * 1000
-	HANDLER_TIMEOUT_MS   = 5 * 1000
-	HANDLER_TIMEOUT_TEXT = "closed on timeout"
 
 	CONF_TIME_LAYOUT = "15:04"
 
@@ -143,6 +136,8 @@ type LastSaleDateResponse struct {
 	LastSaleDate ReportPeriodDate `json:"last_sale_date"`
 }
 
+// FetchReportPerod retirieves dateFrom and dateTo paramerers from url.
+// It tries http query API_TRY_CNT times with a pause of API_WAIT_SEC.
 func (a *App) FetchReportPerod(url string, apiKey string) (time.Time, time.Time, error) {
 	// d1, err := time.Parse(ReportPeriodLoyout, "2024-07-01")
 	// if err != nil {
@@ -201,6 +196,9 @@ func (a *App) FetchReportPerod(url string, apiKey string) (time.Time, time.Time,
 	return time.Time{}, time.Time{}, fmt.Errorf("error fetching report period")
 }
 
+// SendData sends rk data to url.
+// rkData is marshaled with json.Marshal().
+// It tries http query API_TRY_CNT times with a pause of API_WAIT_SEC.
 func (a *App) SendData(rkData []RKDate, url string, apiKey string) error {
 	//marshal data
 	rk_data_b, err := json.Marshal(rkData)
